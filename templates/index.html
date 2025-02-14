@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Bookmark Tool</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Browser Bookmark Tool</h1>
+    </header>
+    <main>
+        <form action="/upload/" method="post" enctype="multipart/form-data">
+            <label for="file">Upload Bookmark File:</label>
+            <input type="file" id="file" name="file" accept=".html">
+            <button type="submit">Upload</button>
+        </form>
+        <section id="bookmarks">
+            <h2>Bookmarks</h2>
+            <button id="refresh-button">Refresh All Summaries</button>
+            <div id="layout">
+                <div id="sidebar">
+                    <ul id="bookmark-list">
+                </div>
+                <div id="details">
+                    <h2>Bookmark Details</h2>
+                    <p><strong>Title:</strong> <span id="detail-title"></span></p>
+                    <p><strong>URL:</strong> <a id="detail-url" href="#" target="_blank"></a></p>
+                    <p><strong>Summary:</strong> <span id="detail-summary"></span></p>
+                    <div id="progress">
+                        <p><strong>Progress:</strong></p>
+                        <ul>
+                            <li id="step-fetch">[1/5] Fetching URL...</li>
+                            <li id="step-open">[2/5] Opening webpage...</li>
+                            <li id="step-extract">[3/5] Extracting webpage information...</li>
+                            <li id="step-ai">[4/5] Generating summary with AI...</li>
+                            <li id="step-complete">[5/5] Completed</li>
+                        </ul>
+                    </div>
+                    <p><strong>Tags:</strong> <span id="detail-tags"></span></p>
+                </div>
+            </div>
+                <!-- Bookmarks will be dynamically rendered here -->
+            </ul>
+        </section>
+    </main>
+    <script>
+        async function uploadFile(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const response = await fetch('/upload/', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            const bookmarkList = document.getElementById('bookmark-list');
+            bookmarkList.innerHTML = '';
+            data.bookmarks.forEach(bookmark => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="#">${bookmark.title}</a>`;
+                li.addEventListener('click', async () => {
+                    const progressElement = document.getElementById('progress');
+                    progressElement.innerHTML = '<p><strong>Progress:</strong> [1/5] Fetching URL...</p>';
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+                    progressElement.innerHTML = '<p><strong>Progress:</strong> [2/5] Opening webpage...</p>';
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+                    progressElement.innerHTML = '<p><strong>Progress:</strong> [3/5] Extracting webpage information...</p>';
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+                    const detailResponse = await fetch(`/update-bookmark?url=${encodeURIComponent(bookmark.url)}`);
+                    progressElement.innerHTML = '<p><strong>Progress:</strong> [4/5] Generating summary with AI...</p>';
+                    const detailData = await detailResponse.json();
+                    document.getElementById('detail-title').textContent = bookmark.title;
+                    document.getElementById('detail-url').textContent = bookmark.url;
+                    document.getElementById('detail-url').href = bookmark.url;
+                    document.getElementById('detail-summary').textContent = detailData.summary;
+                    document.getElementById('detail-tags').textContent = detailData.tags.join(", ");
+                    progressElement.innerHTML = '<p><strong>Progress:</strong> [5/5] Completed</p>';
+                    li.innerHTML = `
+                        <a href="${bookmark.url}" target="_blank">${bookmark.title}</a>
+                        <p>Summary: ${data.summary}</p>
+                        <p>Tags: ${data.tags.join(", ")}</p>
+                    `;
+                });
+                bookmarkList.appendChild(li);
+            });
+        }
+        document.querySelector('form').addEventListener('submit', uploadFile);
+        document.getElementById('refresh-button').addEventListener('click', async () => {
+            const response = await fetch('/refresh-all', { method: 'POST' });
+            const data = await response.json();
+            const bookmarkList = document.getElementById('bookmark-list');
+            bookmarkList.innerHTML = '';
+            data.bookmarks.forEach(bookmark => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <a href="${bookmark.url}" target="_blank">${bookmark.title}</a>
+                    <p>Summary: ${bookmark.summary}</p>
+                    <p>Tags: ${bookmark.tags.join(", ")}</p>
+                `;
+                bookmarkList.appendChild(li);
+            });
+        });
+        </script>
+</body>
+</html>

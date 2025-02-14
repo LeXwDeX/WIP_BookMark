@@ -1,0 +1,97 @@
+/* General styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+    color: #333;
+}
+
+header {
+    background-color: #6200ea;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+main {
+    margin: 2rem auto;
+    max-width: 1200px;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Layout for left-right structure */
+#layout {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+
+#sidebar {
+    flex: 1;
+    max-width: 300px;
+    overflow-y: auto;
+    border-right: 1px solid #ccc;
+    padding: 1rem;
+    background-color: #ffffff;
+}
+
+#details {
+    flex: 2;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress bar styling */
+#progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f4f4f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#progress ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#progress li {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: #e0e0e0;
+    color: #333;
+    font-weight: bold;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+#progress li.active {
+    background-color: #6200ea;
+    color: white;
+}
+
+#progress li.completed {
+    background-color: #4caf50;
+    color: white;
+}
+
+/* Buttons */
+button {
+    background-color: #6200ea;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #3700b3;
+}
