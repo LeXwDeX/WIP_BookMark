@@ -1,0 +1,6 @@
+# Required Python packages for the project
+requests
+beautifulsoup4
+chardet
+cloudscraper
+fastapi

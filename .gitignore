@@ -1,0 +1,19 @@
+# Virtual environment
+venv/
+
+# Python bytecode
+*.pyc
+__pycache__/
+
+# Logs
+*.log
+
+# Environment variables
+*.env
+
+# System files
+*.DS_Store
+
+# Backup and temporary files
+*.bak
+*.tmp
