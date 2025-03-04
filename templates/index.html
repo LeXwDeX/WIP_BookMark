@@ -49,6 +49,25 @@
         </section>
     </main>
     <script>
+        // 页面加载时获取书签
+        document.addEventListener('DOMContentLoaded', fetchBookmarks);
+
+        // 获取所有书签
+        async function fetchBookmarks() {
+            try {
+                const response = await fetch('/bookmarks/');
+                if (!response.ok) {
+                    throw new Error('获取书签失败');
+                }
+                const data = await response.json();
+                renderBookmarks(data.bookmarks);
+            } catch (error) {
+                console.error('Error fetching bookmarks:', error);
+                const bookmarkList = document.getElementById('bookmark-list');
+                bookmarkList.innerHTML = '<li class="error-message">暂无书签数据，请先上传书签文件。</li>';
+            }
+        }
+
         // 上传书签文件
         async function uploadFile(event) {
             event.preventDefault();
@@ -99,6 +118,41 @@
             document.getElementById('detail-title').textContent = bookmark.title;
             document.getElementById('detail-url').textContent = bookmark.url;
             document.getElementById('detail-url').href = bookmark.url;
+            
+            // 显示摘要和标签（如果已有）
+            if (bookmark.summary) {
+                document.getElementById('detail-summary').textContent = bookmark.summary.content;
+            } else {
+                document.getElementById('detail-summary').textContent = '暂无摘要';
+            }
+            
+            if (bookmark.tags && bookmark.tags.length > 0) {
+                document.getElementById('detail-tags').textContent = bookmark.tags.map(tag => tag.name).join(', ');
+            } else {
+                document.getElementById('detail-tags').textContent = '暂无标签';
+            }
+            
+            // 添加更新按钮，允许用户手动更新摘要和标签
+            const updateButton = document.createElement('button');
+            updateButton.textContent = '更新摘要和标签';
+            updateButton.classList.add('update-button');
+            updateButton.onclick = () => updateBookmarkDetails(bookmark.id);
+            
+            // 清除可能存在的旧按钮
+            const existingButton = document.querySelector('.update-button');
+            if (existingButton) {
+                existingButton.remove();
+            }
+            
+            // 添加按钮到详情区域
+            document.getElementById('details').insertBefore(
+                updateButton, 
+                document.getElementById('progress')
+            );
+        }
+
+        // 更新书签详情（生成摘要和标签）
+        async function updateBookmarkDetails(bookmarkId) {
             document.getElementById('detail-summary').textContent = '加载中...';
             document.getElementById('detail-tags').textContent = '加载中...';
             
@@ -106,18 +160,18 @@
             updateProgress('step-fetch');
             
             try {
-                const response = await fetch(`/update-bookmark/?url=${encodeURIComponent(bookmark.url)}`);
+                const response = await fetch(`/bookmarks/${bookmarkId}/update`);
                 updateProgress('step-process');
                 const data = await response.json();
                 
                 if (data.summary) {
                     updateProgress('step-summary');
-                    document.getElementById('detail-summary').textContent = data.summary;
+                    document.getElementById('detail-summary').textContent = data.summary.content;
                 }
                 
                 if (data.tags) {
                     updateProgress('step-tags');
-                    document.getElementById('detail-tags').textContent = data.tags.join(', ');
+                    document.getElementById('detail-tags').textContent = data.tags.map(tag => tag.name).join(', ');
                 }
                 
                 updateProgress('step-complete');
@@ -135,7 +189,7 @@
             refreshButton.disabled = true;
             
             try {
-                const response = await fetch('/refresh-all/', { method: 'POST' });
+                const response = await fetch('/bookmarks/refresh-all', { method: 'POST' });
                 const data = await response.json();
                 if (data.error) {
                     alert(data.error);

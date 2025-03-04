@@ -8,6 +8,7 @@ import os
 from models.bookmark import Bookmark, BookmarkCollection
 from services.bookmark_parser import BookmarkParser
 from services.ai_service import AIService
+from services.database_service import DatabaseService
 
 app = FastAPI(title="浏览器书签工具")
 
@@ -23,6 +24,17 @@ MODEL = "gpt-4o-mini"
 # 全局变量
 bookmark_collection: Optional[BookmarkCollection] = None
 ai_service = AIService(API_BASE, API_KEY, MODEL)
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时从数据库加载书签"""
+    global bookmark_collection
+    loaded_collection = DatabaseService.load_bookmark_collection()
+    if loaded_collection is None:
+        print("警告：无法从数据库加载书签集合，将使用空集合初始化")
+        bookmark_collection = BookmarkCollection(source_file="database")
+    else:
+        bookmark_collection = loaded_collection
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -49,6 +61,12 @@ async def upload_bookmarks(file: UploadFile):
     if not bookmark_collection:
         raise HTTPException(status_code=400, detail="书签文件解析失败")
     
+    # 保存到数据库
+    try:
+        DatabaseService.save_bookmark_collection(bookmark_collection)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存书签失败: {str(e)}")
+    
     # 返回展平的书签列表用于显示
     bookmarks = BookmarkParser.flatten_bookmarks(bookmark_collection)
     return {"filename": file.filename, "bookmarks": [bookmark.dict() for bookmark in bookmarks]}
@@ -56,8 +74,12 @@ async def upload_bookmarks(file: UploadFile):
 @app.get("/bookmarks/")
 async def get_bookmarks():
     """获取所有书签"""
+    global bookmark_collection
     if not bookmark_collection:
-        raise HTTPException(status_code=404, detail="未上传书签文件")
+        # 尝试从数据库加载
+        bookmark_collection = DatabaseService.load_bookmark_collection()
+        if not bookmark_collection:
+            raise HTTPException(status_code=404, detail="未上传书签文件")
     
     bookmarks = BookmarkParser.flatten_bookmarks(bookmark_collection)
     return {"bookmarks": [bookmark.dict() for bookmark in bookmarks]}
@@ -65,6 +87,7 @@ async def get_bookmarks():
 @app.get("/bookmarks/{bookmark_id}")
 async def get_bookmark(bookmark_id: str):
     """获取单个书签详情"""
+    global bookmark_collection
     if not bookmark_collection:
         raise HTTPException(status_code=404, detail="未上传书签文件")
     
@@ -77,6 +100,7 @@ async def get_bookmark(bookmark_id: str):
 @app.get("/bookmarks/{bookmark_id}/update")
 async def update_bookmark(bookmark_id: str):
     """更新单个书签的AI摘要和标签"""
+    global bookmark_collection
     if not bookmark_collection:
         raise HTTPException(status_code=404, detail="未上传书签文件")
     
@@ -89,11 +113,18 @@ async def update_bookmark(bookmark_id: str):
     bookmark.summary = summary
     bookmark.tags = tags
     
+    # 保存更改到数据库
+    try:
+        DatabaseService.save_bookmark_collection(bookmark_collection)
+    except Exception as e:
+        print(f"保存书签失败: {str(e)}")
+    
     return bookmark.dict()
 
 @app.post("/bookmarks/refresh-all")
 async def refresh_all_bookmarks():
     """刷新所有书签的AI摘要和标签"""
+    global bookmark_collection
     if not bookmark_collection:
         raise HTTPException(status_code=404, detail="未上传书签文件")
     
@@ -106,11 +137,18 @@ async def refresh_all_bookmarks():
         bookmark.tags = tags
         updated_bookmarks.append(bookmark.dict())
     
+    # 保存更改到数据库
+    try:
+        DatabaseService.save_bookmark_collection(bookmark_collection)
+    except Exception as e:
+        print(f"保存书签失败: {str(e)}")
+        
     return {"bookmarks": updated_bookmarks}
 
 @app.get("/search/")
 async def search_bookmarks(query: str):
     """搜索书签"""
+    global bookmark_collection
     if not bookmark_collection:
         raise HTTPException(status_code=404, detail="未上传书签文件")
     

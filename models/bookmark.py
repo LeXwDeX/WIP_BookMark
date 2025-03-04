@@ -25,6 +25,23 @@ class Bookmark(BaseModel):
     last_visited: Optional[datetime] = None  # 最后访问时间
     last_updated: Optional[datetime] = None  # 最后更新时间
 
+    def __init__(self, id: str, title: str, url: str, created_at: datetime = None,
+                 folder_path: str = '/', tags: List[BookmarkTag] = None,
+                 summary: Optional[BookmarkSummary] = None,
+                 last_visited: Optional[datetime] = None,
+                 last_updated: Optional[datetime] = None,
+                 original_title: Optional[str] = None):
+        self.id = id
+        self.title = title
+        self.original_title = original_title
+        self.url = url
+        self.created_at = created_at or datetime.now()
+        self.folder_path = folder_path
+        self.tags = tags or []
+        self.summary = summary
+        self.last_visited = last_visited
+        self.last_updated = last_updated
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
@@ -55,8 +72,29 @@ class BookmarkCollection(BaseModel):
         """添加书签到指定文件夹"""
         current_folder = self.root_folder
         if folder_path != "/":
-            # TODO: 实现文件夹路径查找和创建逻辑
-            pass
+            # 分割文件夹路径
+            path_parts = [p for p in folder_path.split("/") if p]
+            
+            # 遍历路径部分，创建或查找对应的文件夹
+            for part in path_parts:
+                # 在当前文件夹的子文件夹中查找
+                found = False
+                for subfolder in current_folder.subfolders:
+                    if subfolder.name == part:
+                        current_folder = subfolder
+                        found = True
+                        break
+                
+                # 如果没有找到对应的文件夹，创建新的文件夹
+                if not found:
+                    new_folder = BookmarkFolder(
+                        path=folder_path,
+                        name=part,
+                        parent_path=current_folder.path
+                    )
+                    current_folder.subfolders.append(new_folder)
+                    current_folder = new_folder
+        
         current_folder.bookmarks.append(bookmark)
 
     def find_bookmark_by_id(self, bookmark_id: str) -> Optional[Bookmark]:
