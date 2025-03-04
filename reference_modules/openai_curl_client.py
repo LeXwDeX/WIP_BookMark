@@ -37,7 +37,7 @@ def chat_completion(api_base, api_key, model, messages):
 
 # 示例用法
 if __name__ == "__main__":
-    api_base = "https://chat_admin.sunsan05.com/v1"
+    api_base = "https://one-api.ycgame.com/v1"
     api_key = "sk-JkjLOSoqsqE8A6XL5cDb428908Cd4aD48bF329Dd1a146395"
     model = "gpt-4o-mini"
     messages = [{"role": "user", "content": "你好，测试一下。"}]

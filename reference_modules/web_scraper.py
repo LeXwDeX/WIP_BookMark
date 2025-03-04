@@ -19,33 +19,50 @@ class WebScraper:
         """
         Fetch URL and return the contents as a string.
         """
+        print(f"[WebScraper] 开始获取URL: {url}")
         scraper = cloudscraper.create_scraper()
         headers = {
             "User-Agent": user_agent or scraper.headers["User-Agent"]
         }
+        print(f"[WebScraper] 使用User-Agent: {headers['User-Agent']}")
+
 
         try:
             # Attempt to fetch the URL
+            print("[WebScraper] 正在发送HTTP请求...")
             response = scraper.get(url, headers=headers, timeout=(5, 10))
             response.raise_for_status()
+            print(f"[WebScraper] 成功获取响应，状态码: {response.status_code}")
+
         except requests.exceptions.RequestException as e:
             return f"Failed to fetch URL: {e}"
 
         # Detect encoding using chardet
+        print("[WebScraper] 正在检测页面编码...")
         detected_encoding = chardet.detect(response.content)
         encoding = detected_encoding["encoding"]
+        print(f"[WebScraper] 检测到编码: {encoding}")
         if encoding:
             try:
+                print(f"[WebScraper] 尝试使用 {encoding} 解码内容...")
                 content = response.content.decode(encoding)
-            except (UnicodeDecodeError, TypeError):
+                print("[WebScraper] 内容解码成功")
+            except (UnicodeDecodeError, TypeError) as e:
+                print(f"[WebScraper] 解码失败: {e}，使用response.text作为备选")
                 content = response.text
         else:
+            print("[WebScraper] 未检测到编码，使用response.text")
             content = response.text
 
+        print("[WebScraper] 开始提取页面内容...")
         extracted_content = WebScraper.extract_content(content)
 
         if not extracted_content["plain_text"] or not extracted_content["plain_text"].strip():
+            print("[WebScraper] 警告：未能提取到有效内容")
             return "No meaningful content extracted."
+        
+        print("[WebScraper] 内容提取完成")
+
 
         return FULL_TEMPLATE.format(
             title=extracted_content["title"],
@@ -61,8 +78,10 @@ class WebScraper:
         Extract main content from HTML using BeautifulSoup.
         """
         from bs4 import BeautifulSoup
-
+        print("[WebScraper] 开始解析HTML...")
         soup = BeautifulSoup(html, "html.parser")
+        print("[WebScraper] HTML解析完成")
+
 
         # Extract title
         title = soup.title.string if soup.title else "No Title"

@@ -8,6 +8,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 import os
 
+# 全局变量存储书签数据
+bookmarks = []
+
 app = FastAPI()
 
 # Mount static files and templates
@@ -22,6 +25,7 @@ async def read_root(request: Request):
 # Upload bookmarks file
 @app.post("/upload/")
 async def upload_bookmarks(file: UploadFile):
+    global bookmarks
     if not file.filename.endswith(".html"):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload an HTML file.")
     content = await file.read()
@@ -55,7 +59,7 @@ async def refresh_all():
 
 def generate_ai_summary_and_tags(url: str):
     """Generate AI summary and tags for a given URL."""
-    api_base = "https://chat_admin.sunsan05.com/v1"
+    api_base = "https://one-api.ycgame.com/v1"
     api_key = "sk-JkjLOSoqsqE8A6XL5cDb428908Cd4aD48bF329Dd1a146395"
     model = "gpt-4o-mini"
     # Fetch website content using WebScraper
@@ -98,3 +102,6 @@ def parse_bookmarks(content: bytes):
         if title and url:
             bookmarks.append({"title": title, "url": url})
     return bookmarks
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

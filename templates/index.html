@@ -3,49 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browser Bookmark Tool</title>
+    <title>浏览器书签工具</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <header>
-        <h1>Browser Bookmark Tool</h1>
+        <h1>浏览器书签工具</h1>
     </header>
     <main>
-        <form action="/upload/" method="post" enctype="multipart/form-data">
-            <label for="file">Upload Bookmark File:</label>
-            <input type="file" id="file" name="file" accept=".html">
-            <button type="submit">Upload</button>
-        </form>
+        <section id="upload-section">
+            <form action="/upload/" method="post" enctype="multipart/form-data">
+                <label for="file">上传书签文件:</label>
+                <input type="file" id="file" name="file" accept=".html">
+                <button type="submit">上传</button>
+            </form>
+        </section>
+        <section id="search-section">
+            <input type="text" id="search-input" placeholder="搜索书签...">
+        </section>
         <section id="bookmarks">
-            <h2>Bookmarks</h2>
-            <button id="refresh-button">Refresh All Summaries</button>
+            <h2>书签列表</h2>
+            <button id="refresh-button">刷新所有摘要</button>
             <div id="layout">
                 <div id="sidebar">
-                    <ul id="bookmark-list">
+                    <ul id="bookmark-list"></ul>
                 </div>
                 <div id="details">
-                    <h2>Bookmark Details</h2>
-                    <p><strong>Title:</strong> <span id="detail-title"></span></p>
-                    <p><strong>URL:</strong> <a id="detail-url" href="#" target="_blank"></a></p>
-                    <p><strong>Summary:</strong> <span id="detail-summary"></span></p>
+                    <h2>书签详情</h2>
+                    <p><strong>标题:</strong> <span id="detail-title"></span></p>
+                    <p><strong>网址:</strong> <a id="detail-url" href="#" target="_blank"></a></p>
                     <div id="progress">
-                        <p><strong>Progress:</strong></p>
+                        <p><strong>进度:</strong></p>
                         <ul>
-                            <li id="step-fetch">[1/5] Fetching URL...</li>
-                            <li id="step-open">[2/5] Opening webpage...</li>
-                            <li id="step-extract">[3/5] Extracting webpage information...</li>
-                            <li id="step-ai">[4/5] Generating summary with AI...</li>
-                            <li id="step-complete">[5/5] Completed</li>
+                            <li id="step-fetch">[1/5] 获取网页内容...</li>
+                            <li id="step-process">[2/5] 处理网页内容...</li>
+                            <li id="step-summary">[3/5] 生成AI摘要...</li>
+                            <li id="step-tags">[4/5] 生成AI标签...</li>
+                            <li id="step-complete">[5/5] 完成</li>
                         </ul>
                     </div>
-                    <p><strong>Tags:</strong> <span id="detail-tags"></span></p>
+                    <p><strong>摘要:</strong> <span id="detail-summary"></span></p>
+                    <p><strong>标签:</strong> <span id="detail-tags"></span></p>
                 </div>
             </div>
-                <!-- Bookmarks will be dynamically rendered here -->
-            </ul>
         </section>
     </main>
     <script>
+        // 上传书签文件
         async function uploadFile(event) {
             event.preventDefault();
             const formData = new FormData(event.target);
@@ -54,53 +58,119 @@
                 body: formData
             });
             const data = await response.json();
+            renderBookmarks(data.bookmarks);
+        }
+
+        // 渲染书签列表
+        function renderBookmarks(bookmarks) {
             const bookmarkList = document.getElementById('bookmark-list');
             bookmarkList.innerHTML = '';
-            data.bookmarks.forEach(bookmark => {
+            bookmarks.forEach(bookmark => {
                 const li = document.createElement('li');
                 li.innerHTML = `<a href="#">${bookmark.title}</a>`;
-                li.addEventListener('click', async () => {
-                    const progressElement = document.getElementById('progress');
-                    progressElement.innerHTML = '<p><strong>Progress:</strong> [1/5] Fetching URL...</p>';
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-                    progressElement.innerHTML = '<p><strong>Progress:</strong> [2/5] Opening webpage...</p>';
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-                    progressElement.innerHTML = '<p><strong>Progress:</strong> [3/5] Extracting webpage information...</p>';
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-                    const detailResponse = await fetch(`/update-bookmark?url=${encodeURIComponent(bookmark.url)}`);
-                    progressElement.innerHTML = '<p><strong>Progress:</strong> [4/5] Generating summary with AI...</p>';
-                    const detailData = await detailResponse.json();
-                    document.getElementById('detail-title').textContent = bookmark.title;
-                    document.getElementById('detail-url').textContent = bookmark.url;
-                    document.getElementById('detail-url').href = bookmark.url;
-                    document.getElementById('detail-summary').textContent = detailData.summary;
-                    document.getElementById('detail-tags').textContent = detailData.tags.join(", ");
-                    progressElement.innerHTML = '<p><strong>Progress:</strong> [5/5] Completed</p>';
-                    li.innerHTML = `
-                        <a href="${bookmark.url}" target="_blank">${bookmark.title}</a>
-                        <p>Summary: ${data.summary}</p>
-                        <p>Tags: ${data.tags.join(", ")}</p>
-                    `;
-                });
+                li.addEventListener('click', () => showBookmarkDetails(bookmark));
                 bookmarkList.appendChild(li);
             });
         }
-        document.querySelector('form').addEventListener('submit', uploadFile);
-        document.getElementById('refresh-button').addEventListener('click', async () => {
-            const response = await fetch('/refresh-all', { method: 'POST' });
-            const data = await response.json();
-            const bookmarkList = document.getElementById('bookmark-list');
-            bookmarkList.innerHTML = '';
-            data.bookmarks.forEach(bookmark => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <a href="${bookmark.url}" target="_blank">${bookmark.title}</a>
-                    <p>Summary: ${bookmark.summary}</p>
-                    <p>Tags: ${bookmark.tags.join(", ")}</p>
-                `;
-                bookmarkList.appendChild(li);
+
+        // 更新进度显示
+        function updateProgress(currentStep) {
+            const steps = ['step-fetch', 'step-process', 'step-summary', 'step-tags', 'step-complete'];
+            const progressItems = document.querySelectorAll('#progress li');
+            
+            progressItems.forEach(item => {
+                item.classList.remove('active', 'completed');
             });
-        });
-        </script>
+            
+            let reachedCurrent = false;
+            steps.forEach(step => {
+                const element = document.getElementById(step);
+                if (step === currentStep) {
+                    element.classList.add('active');
+                    reachedCurrent = true;
+                } else if (!reachedCurrent) {
+                    element.classList.add('completed');
+                }
+            });
+        }
+
+        // 显示书签详情
+        async function showBookmarkDetails(bookmark) {
+            document.getElementById('detail-title').textContent = bookmark.title;
+            document.getElementById('detail-url').textContent = bookmark.url;
+            document.getElementById('detail-url').href = bookmark.url;
+            document.getElementById('detail-summary').textContent = '加载中...';
+            document.getElementById('detail-tags').textContent = '加载中...';
+            
+            // 显示进度
+            updateProgress('step-fetch');
+            
+            try {
+                const response = await fetch(`/update-bookmark/?url=${encodeURIComponent(bookmark.url)}`);
+                updateProgress('step-process');
+                const data = await response.json();
+                
+                if (data.summary) {
+                    updateProgress('step-summary');
+                    document.getElementById('detail-summary').textContent = data.summary;
+                }
+                
+                if (data.tags) {
+                    updateProgress('step-tags');
+                    document.getElementById('detail-tags').textContent = data.tags.join(', ');
+                }
+                
+                updateProgress('step-complete');
+            } catch (error) {
+                document.getElementById('detail-summary').textContent = '无法生成摘要';
+                document.getElementById('detail-tags').textContent = '无法生成标签';
+                console.error('Error fetching bookmark details:', error);
+            }
+        }
+
+        // 刷新所有书签的摘要和标签
+        async function refreshAllBookmarks() {
+            const refreshButton = document.getElementById('refresh-button');
+            refreshButton.textContent = '刷新中...';
+            refreshButton.disabled = true;
+            
+            try {
+                const response = await fetch('/refresh-all/', { method: 'POST' });
+                const data = await response.json();
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    renderBookmarks(data.bookmarks);
+                    alert('所有书签已更新完成！');
+                }
+            } catch (error) {
+                console.error('Error refreshing bookmarks:', error);
+                alert('刷新书签时出错，请重试。');
+            } finally {
+                refreshButton.textContent = '刷新所有摘要';
+                refreshButton.disabled = false;
+            }
+        }
+
+        // 搜索书签
+        function searchBookmarks() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const bookmarkItems = document.querySelectorAll('#bookmark-list li');
+            
+            bookmarkItems.forEach(item => {
+                const title = item.textContent.toLowerCase();
+                if (title.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // 事件监听
+        document.querySelector('form').addEventListener('submit', uploadFile);
+        document.getElementById('refresh-button').addEventListener('click', refreshAllBookmarks);
+        document.getElementById('search-input').addEventListener('input', searchBookmarks);
+    </script>
 </body>
 </html>
