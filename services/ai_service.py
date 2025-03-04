@@ -36,10 +36,16 @@ class AIService:
     def _generate_summary(self, content: str) -> BookmarkSummary:
         """生成内容摘要"""
         try:
-            summary_message = [{"role": "user", "content": f"请为以下内容生成摘要：\n{content}"}]
+            summary_message = [{
+                "role": "user", 
+                "content": "请直接描述以下内容的主要内容和要点，不要添加'摘要'等标记词：\n" + content
+            }]
             summary_response = chat_completion(self.api_base, self.api_key, self.model, summary_message)
             if summary_response and not summary_response.startswith("Error"):
-                return BookmarkSummary(content=summary_response.strip())
+                # 清理可能出现的标记文本
+                cleaned_summary = summary_response.strip()
+                cleaned_summary = cleaned_summary.replace("摘要：", "").replace("摘要:", "")
+                return BookmarkSummary(content=cleaned_summary)
             return BookmarkSummary(content="无法生成摘要", error_message=summary_response)
         except Exception as e:
             return BookmarkSummary(content="无法生成摘要", error_message=str(e))
