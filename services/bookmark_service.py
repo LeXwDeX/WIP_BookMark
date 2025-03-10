@@ -1,0 +1,110 @@
+"""书签服务模块，用于处理书签的同步、更新和删除操作。
+
+主要功能：
+1. 解析书签文件并导入到数据库
+2. 比较和更新已存在的书签
+3. 删除不再存在的书签
+"""
+
+import json
+from typing import List, Dict
+from modules.bookmark_analyzer import analyze_bookmarks
+from modules.db_manager import BookmarkDBManager
+
+class BookmarkService:
+    def __init__(self, db_path: str = 'bookmarks.db'):
+        """初始化书签服务
+        
+        Args:
+            db_path: 数据库文件路径
+        """
+        self.db_manager = BookmarkDBManager(db_path)
+    
+    def sync_bookmarks(self, html_file: str, compare_fields: List[str] = None) -> Dict:
+        """同步书签数据
+        
+        解析书签文件，将新书签导入数据库，更新已存在的书签，删除不再存在的书签。
+        
+        Args:
+            html_file: 书签HTML文件路径
+            compare_fields: 需要比较的字段列表，可选值为['title', 'url', 'icon']。
+                          如果为None，则默认只比较标题。
+            
+        Returns:
+            同步结果统计信息
+        """
+        # 解析新的书签文件
+        result = analyze_bookmarks(html_file)
+        new_bookmarks = json.loads(result)
+        
+        # 获取数据库中现有的书签
+        existing_bookmarks = json.loads(self.db_manager.export_bookmarks())
+        
+        # 用于跟踪操作结果
+        stats = {
+            'total_new': len(new_bookmarks),
+            'total_existing': len(existing_bookmarks),
+            'updated': 0,
+            'added': 0,
+            'deleted': 0
+        }
+        
+        # 创建URL到书签ID的映射，用于快速查找
+        existing_url_map = {bookmark['url']: bookmark['id'] for bookmark in existing_bookmarks}
+        new_url_set = {bookmark['url'] for bookmark in new_bookmarks}
+        
+        # 处理新书签：添加或更新
+        for new_bookmark in new_bookmarks:
+            url = new_bookmark['url']
+            if url in existing_url_map:
+                # 更新已存在的书签
+                bookmark_id = existing_url_map[url]
+                if self._should_update_bookmark(new_bookmark, self.db_manager.get_bookmark(bookmark_id), compare_fields):
+                    self.db_manager.update_bookmark(bookmark_id, new_bookmark)
+                    stats['updated'] += 1
+            else:
+                # 添加新书签
+                self.db_manager.add_bookmark(new_bookmark)
+                stats['added'] += 1
+        
+        # 删除不再存在的书签
+        for existing_bookmark in existing_bookmarks:
+            if existing_bookmark['url'] not in new_url_set:
+                self.db_manager.delete_bookmark(existing_bookmark['id'])
+                stats['deleted'] += 1
+        
+        return stats
+    
+    def _should_update_bookmark(self, new_bookmark: Dict, existing_bookmark: Dict, compare_fields: List[str] = None) -> bool:
+        """判断是否需要更新书签
+        
+        比较书签的关键属性，判断是否需要更新。
+        
+        Args:
+            new_bookmark: 新书签数据
+            existing_bookmark: 现有书签数据
+            compare_fields: 需要比较的字段列表，可选值为['title', 'url', 'icon']。
+                          如果为None，则默认只比较标题。
+            
+        Returns:
+            如果需要更新返回True，否则返回False
+        """
+        if not existing_bookmark:
+            return True
+        
+        # 如果没有指定比较字段，则默认只比较标题
+        if not compare_fields:
+            compare_fields = ['title']
+        
+        # 遍历指定的字段进行比较
+        for field in compare_fields:
+            if field in ['title', 'url', 'icon']:
+                if new_bookmark.get(field) != existing_bookmark.get(field):
+                    # 如果是标题发生变化，打印差异信息
+                    if field == 'title':
+                        print(f"标题变更 - URL: {existing_bookmark.get('url')}")
+                        print(f"  旧标题: {existing_bookmark.get('title')}")
+                        print(f"  新标题: {new_bookmark.get('title')}")
+                    return True
+        
+        return False

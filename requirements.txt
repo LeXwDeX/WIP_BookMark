@@ -6,3 +6,6 @@ cloudscraper
 jinja2
 fastapi
 uvicorn
+
+# For testing (optional)
+pytest
