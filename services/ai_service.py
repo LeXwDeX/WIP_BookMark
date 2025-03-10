@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Tuple
-from reference_modules.web_scraper import WebScraper
-from reference_modules.openai_curl_client import chat_completion
-from models.bookmark import BookmarkSummary, BookmarkTag
+from modules.web_scraper import WebScraper
+from modules.llms_client import chat_completion
 
 """
 自述：
@@ -41,13 +40,17 @@ class AIService:
         self.model = model
         self.web_scraper = WebScraper()
 
-    def process_url(self, url: str) -> Tuple[Optional[BookmarkSummary], List[BookmarkTag]]:
-        """处理URL，获取网页内容并生成AI摘要和标签"""
+    def process_url(self, url: str) -> Tuple[str, List[str], Optional[str]]:
+        """处理URL，获取网页内容并生成AI摘要和标签
+        
+        Returns:
+            Tuple[str, List[str], Optional[str]]: 返回(摘要内容, 标签列表, 错误信息)
+        """
         # 获取网页内容
         content = self.web_scraper.get_url(url)
 
         if "Failed to fetch URL" in content or "No meaningful content extracted" in content:
-            return BookmarkSummary(content="无法生成摘要", error_message=content), []
+            return "无法生成摘要", [], content
 
         # 截断内容以避免超出API限制
         max_length = 100000
@@ -60,10 +63,14 @@ class AIService:
         # 生成标签
         tags = self._generate_tags(truncated_content)
 
-        return summary, tags
+        return summary, tags, None
 
-    def _generate_summary(self, content: str) -> BookmarkSummary:
-        """生成内容摘要"""
+    def _generate_summary(self, content: str) -> str:
+        """生成内容摘要
+        
+        Returns:
+            str: 摘要内容
+        """
         try:
             summary_message = [{
                 "role": "user", 
@@ -74,28 +81,38 @@ class AIService:
                 # 清理可能出现的标记文本
                 cleaned_summary = summary_response.strip()
                 cleaned_summary = cleaned_summary.replace("摘要：", "").replace("摘要:", "")
-                return BookmarkSummary(content=cleaned_summary)
-            return BookmarkSummary(content="无法生成摘要", error_message=summary_response)
+                return cleaned_summary
+            return "无法生成摘要"
         except Exception as e:
-            return BookmarkSummary(content="无法生成摘要", error_message=str(e))
+            print(f"生成摘要时出错: {str(e)}")
+            return "无法生成摘要"
 
-    def _generate_tags(self, content: str) -> List[BookmarkTag]:
-        """生成内容标签"""
+    def _generate_tags(self, content: str) -> List[str]:
+        """生成内容标签
+        
+        Returns:
+            List[str]: 标签列表
+        """
         try:
             tags_message = [{"role": "user", "content": f"请为以下内容生成1到5个重要的文字标签（用逗号隔开）：\n{content}"}]
             tags_response = chat_completion(self.api_base, self.api_key, self.model, tags_message)
             if tags_response and not tags_response.startswith("Error"):
-                return [BookmarkTag(name=tag.strip()) for tag in tags_response.strip().split(",") if tag.strip()]
+                return [tag.strip() for tag in tags_response.strip().split(",") if tag.strip()]
             return []
-        except Exception:
+        except Exception as e:
+            print(f"生成标签时出错: {str(e)}")
             return []
 
     @staticmethod
-    def batch_process_urls(urls: List[str], api_base: str, api_key: str, model: str = "gpt-4o-mini") -> Dict[str, Tuple[Optional[BookmarkSummary], List[BookmarkTag]]]:
-        """批量处理多个URL"""
+    def batch_process_urls(urls: List[str], api_base: str, api_key: str, model: str = "gpt-4o-mini") -> Dict[str, Tuple[str, List[str], Optional[str]]]:
+        """批量处理多个URL
+        
+        Returns:
+            Dict[str, Tuple[str, List[str], Optional[str]]]: 返回URL到(摘要内容, 标签列表, 错误信息)的映射
+        """
         service = AIService(api_base, api_key, model)
         results = {}
         for url in urls:
-            summary, tags = service.process_url(url)
-            results[url] = (summary, tags)
+            summary, tags, error = service.process_url(url)
+            results[url] = (summary, tags, error)
         return results

@@ -33,7 +33,7 @@
 """
 
 import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 from modules.bookmark_analyzer import analyze_bookmarks
 from modules.db_manager import BookmarkDBManager
 
@@ -134,3 +134,62 @@ class BookmarkService:
                     return True
         
         return False
+    
+    def get_bookmark_by_id(self, bookmark_id: int) -> Optional[Dict]:
+        """获取指定ID的书签详细信息
+        
+        Args:
+            bookmark_id: 书签ID
+            
+        Returns:
+            包含书签信息的字典，如果不存在则返回None
+        """
+        return self.db_manager.get_bookmark(bookmark_id)
+    
+    def search_bookmarks(self, query: str = None, tags: List[str] = None) -> List[Dict]:
+        """搜索书签
+        
+        Args:
+            query: 搜索关键词，匹配标题和URL
+            tags: 标签列表，用于按标签筛选书签
+            
+        Returns:
+            符合条件的书签列表
+        """
+        return self.db_manager.search_bookmarks(query)
+    
+    def update_bookmark_notes(self, bookmark_id: int, notes: str) -> bool:
+        """更新书签备注
+        
+        Args:
+            bookmark_id: 书签ID
+            notes: 新的备注内容
+            
+        Returns:
+            更新是否成功
+        """
+        bookmark = self.db_manager.get_bookmark(bookmark_id)
+        if not bookmark:
+            return False
+            
+        # 更新备注字段
+        bookmark['notes'] = notes
+        return self.db_manager.update_bookmark(bookmark_id, bookmark)
+    
+    def update_bookmark_tags(self, bookmark_id: int, tags: List[str]) -> bool:
+        """更新书签标签
+        
+        Args:
+            bookmark_id: 书签ID
+            tags: 新的标签列表
+            
+        Returns:
+            更新是否成功
+        """
+        bookmark = self.db_manager.get_bookmark(bookmark_id)
+        if not bookmark:
+            return False
+            
+        # 更新标签字段
+        bookmark['tags'] = tags
+        return self.db_manager.update_bookmark(bookmark_id, bookmark)
