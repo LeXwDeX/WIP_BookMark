@@ -158,23 +158,24 @@ class BookmarkService:
         """
         return self.db_manager.search_bookmarks(query)
     
-    def update_bookmark_notes(self, bookmark_id: int, notes: str) -> bool:
-        """更新书签备注
+    def update_bookmark_summary(self, bookmark_id: int, summary: str) -> bool:
+        """更新书签摘要
         
         Args:
             bookmark_id: 书签ID
-            notes: 新的备注内容
+            summary: 新的摘要内容
             
         Returns:
             更新是否成功
         """
-        bookmark = self.db_manager.get_bookmark(bookmark_id)
+        bookmark = self.get_bookmark_by_id(bookmark_id)
         if not bookmark:
             return False
-            
-        # 更新备注字段
-        bookmark['notes'] = notes
-        return self.db_manager.update_bookmark(bookmark_id, bookmark)
+        
+        bookmark['summary'] = summary
+        success = self.db_manager.update_bookmark(bookmark_id, bookmark)
+        print(f"更新书签备注{'成功' if success else '失败'} - ID: {bookmark_id}")
+        return success
     
     def update_bookmark_tags(self, bookmark_id: int, tags: List[str]) -> bool:
         """更新书签标签
@@ -186,10 +187,14 @@ class BookmarkService:
         Returns:
             更新是否成功
         """
+        print(f"开始更新书签标签 - ID: {bookmark_id}")
         bookmark = self.db_manager.get_bookmark(bookmark_id)
         if not bookmark:
+            print(f"书签不存在 - ID: {bookmark_id}")
             return False
             
         # 更新标签字段
         bookmark['tags'] = tags
-        return self.db_manager.update_bookmark(bookmark_id, bookmark)
+        success = self.db_manager.update_bookmark(bookmark_id, bookmark)
+        print(f"更新书签标签{'成功' if success else '失败'} - ID: {bookmark_id}")
+        return success
