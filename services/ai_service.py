@@ -3,6 +3,35 @@ from reference_modules.web_scraper import WebScraper
 from reference_modules.openai_curl_client import chat_completion
 from models.bookmark import BookmarkSummary, BookmarkTag
 
+"""
+自述：
+AIService类是一个专门用于处理网页内容并生成AI摘要和标签的服务类。
+
+主要功能：
+1. 网页内容获取：通过WebScraper模块抓取目标URL的网页内容。
+2. 内容处理：对获取的内容进行预处理，包括内容截断等操作，以确保符合API限制。
+3. AI摘要生成：调用OpenAI接口，基于网页内容生成精炼的摘要信息。
+4. 标签生成：分析网页内容，生成相关的标签，便于分类和检索。
+5. 批量处理：支持多个URL的批量处理功能。
+
+工作流程：
+1. 初始化时配置API参数（api_base、api_key、model）和WebScraper实例。
+2. 接收URL请求后，首先通过WebScraper获取网页内容。
+3. 对获取的内容进行预处理和长度控制。
+4. 分别调用OpenAI接口生成摘要和标签。
+5. 返回处理结果，包括摘要对象和标签列表。
+
+异常处理：
+- 网页抓取失败时返回错误信息
+- API调用异常时提供友好的错误提示
+- 内容超限时进行自动截断处理
+
+与其他模块的关系：
+- 依赖WebScraper进行网页内容获取
+- 使用OpenAI接口进行AI处理
+- 与BookmarkSummary和BookmarkTag模型交互
+"""
+
 class AIService:
     """AI服务类，负责网页内容处理和AI摘要生成"""
 
@@ -53,7 +82,7 @@ class AIService:
     def _generate_tags(self, content: str) -> List[BookmarkTag]:
         """生成内容标签"""
         try:
-            tags_message = [{"role": "user", "content": f"请为以下内容生成1到5个最重要的文字标签（用逗号隔开）：\n{content}"}]
+            tags_message = [{"role": "user", "content": f"请为以下内容生成1到5个重要的文字标签（用逗号隔开）：\n{content}"}]
             tags_response = chat_completion(self.api_base, self.api_key, self.model, tags_message)
             if tags_response and not tags_response.startswith("Error"):
                 return [BookmarkTag(name=tag.strip()) for tag in tags_response.strip().split(",") if tag.strip()]
